@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protocol: 180</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --text: #f8fafc;
+            --muted: #94a3b8;
+            --warning: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 15px; line-height: 1.5; }
+        .container { max-width: 600px; margin: auto; }
+        
+        header { text-align: center; border-bottom: 1px solid #334155; padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { color: var(--accent); font-size: 1.8rem; text-transform: uppercase; letter-spacing: 2px; }
+        .rank-badge { display: inline-block; padding: 5px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; font-weight: bold; margin-top: 8px; }
+        
+        .tabs { display: flex; gap: 10px; overflow-x: auto; margin-bottom: 20px; }
+        .tab { background: var(--card); padding: 10px 15px; border-radius: 8px; border: 1px solid #334155; white-space: nowrap; cursor: pointer; font-weight: bold; flex: 1; text-align: center; }
+        .tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+        .view { display: none; }
+        .view.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Workout UI */
+        .card { background: var(--card); padding: 18px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--accent); box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .exercise { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #334155; }
+        .exercise:last-child { border: none; margin-bottom: 0; padding-bottom: 0; }
+        .set-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; background: #0f172a; padding: 12px; border-radius: 6px; }
+        input[type="checkbox"] { transform: scale(1.6); accent-color: var(--accent); cursor: pointer; }
+        input[type="checkbox"]:disabled { filter: grayscale(1); cursor: not-allowed; }
+        
+        /* Active Timer Overlay */
+        .timer-box { font-size: 1.8rem; font-weight: bold; color: var(--warning); text-align: center; padding: 15px; background: #334155; border-radius: 8px; margin-bottom: 15px; display: none; border: 2px solid var(--warning); }
+        
+        /* Inputs & Buttons */
+        button { width: 100%; padding: 14px; background: var(--accent); color: #000; font-weight: bold; font-size: 1rem; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        button:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+        button:not(:disabled):hover { background: var(--accent-hover); }
+        input, select { width: 100%; padding: 14px; background: #0f172a; color: white; border: 1px solid #334155; border-radius: 8px; margin-bottom: 12px; font-size: 1rem; }
+        
+        /* Anchor & Vault */
+        .vault-media { width: 100%; border-radius: 8px; margin-top: 12px; border: 1px solid #334155; background: #000; }
+        .anchor-box { text-align: center; border: 2px solid #ef4444; padding: 25px; border-radius: 12px; background: #450a0a; margin-top: 10px; }
+        .anchor-box h2 { color: #f87171; margin-bottom: 10px; }
+        
+        #upload-status { text-align: center; margin-top: 10px; color: var(--warning); font-weight: bold; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Protocol: 180</h1>
+            <p style="color: var(--muted);">Day <span id="day-count" style="color: white; font-weight: bold;">--</span> / 180</p>
+            <div class="rank-badge" id="rank-display">Connecting to Cloud...</div>
+        </header>
+
+        <div class="tabs">
+            <div class="tab active" onclick="nav('workout')">Protocol</div>
+            <div class="tab" onclick="nav('vault')">Vault</div>
+            <div class="tab" onclick="nav('anchor')" style="border-color: #ef4444; color: #ef4444;">Anchor</div>
+        </div>
+
+        <!-- WORKOUT ENGINE -->
+        <div id="workout" class="view active">
+            <h2 style="color: var(--accent); margin-bottom: 5px;" id="cycle-title">Loading Parameters...</h2>
+            <p style="color: var(--muted); margin-bottom: 20px; font-size: 0.9rem;">Check off sets to trigger the rest timer. Do not bypass the timer.</p>
+            
+            <div id="active-timer" class="timer-box">REST: <span id="time-left">0</span>s</div>
+            
+            <div class="card" id="workout-container"></div>
+            
+            <button id="complete-btn" disabled onclick="completeDay()">MARK DAY COMPLETE</button>
+        </div>
+
+        <!-- ZERO-TRACE VAULT -->
+        <div id="vault" class="view">
+            <h2>Progress Vault</h2>
+            <p style="color: var(--muted); margin-bottom: 15px; font-size: 0.9rem;">Upload a photo or a short video (<10s). Handled securely by Cloudinary CDN.</p>
+            
+            <input type="file" accept="image/*,video/*" capture="environment" id="media-input">
+            <input type="number" id="weight-input" placeholder="Current Weight (kg)">
+            
+            <button onclick="uploadMedia()" id="upload-btn">Sync Media to Cloud</button>
+            <div id="upload-status">Uploading to Server... Please wait.</div>
+            
+            <div id="gallery-container" style="margin-top: 25px;"></div>
+        </div>
+
+        <!-- ANTI-RELAPSE ANCHOR -->
+        <div id="anchor" class="view">
+            <div class="anchor-box">
+                <h2>DO NOT TRADE HER FOR PIXELS.</h2>
+                <p style="margin: 10px 0; color: #fca5a5;">Cheap dopamine costs you everything. She deserves the best version of you. Close the tabs. Drop for 20 neutral-grip pushups immediately.</p>
+                <input type="file" accept="image/*" id="gf-input" onchange="setAnchor(event)" style="margin-top:15px;">
+                <img id="gf-display" style="width:100%; border-radius: 8px; margin-top: 15px; display:none;">
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE & LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // ==========================================
+        // 1. CONFIGURATION
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDYFvs_Opl_32Lm5yIwek8TwDw0dbBXLJI",
+            authDomain: "protocol180.firebaseapp.com",
+            databaseURL: "https://protocol180-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "protocol180",
+            storageBucket: "protocol180.firebasestorage.app",
+            messagingSenderId: "862475981303",
+            appId: "1:862475981303:web:bc27cd2c357f339f225ef2"
+        };
+        
+        const cloudinaryCloudName = "z7uuzpvt"; 
+        const cloudinaryUploadPreset = "weodzgk3"; 
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // ==========================================
+        // 2. CLOUD STATE MANAGEMENT
+        // ==========================================
+        let state = {
+            startDate: null,
+            streak: 0,
+            completedDates: [],
+            vault: [],
+            anchorImage: ""
+        };
+
+        // Live Sync
+        onValue(ref(db, 'users/adarsh'), (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                state = data;
+            } else {
+                state.startDate = new Date().toISOString().split('T')[0];
+                syncState();
+            }
+            renderApp();
+        });
+
+        function syncState() {
+            set(ref(db, 'users/adarsh'), state);
+        }
+
+        // ==========================================
+        // 3. HARDWARE-OPTIMIZED PROTOCOL (Phase 1)
+        // ==========================================
+        const routines = {
+            1: { 
+                title: "Push (Chest, Shoulders, Triceps)",
+                exercises: [
+                    { name: "Skipping Rope (Warmup)", sets: 1, reps: "3 mins", rest: 0 },
+                    { name: "Pec Flys (Decathlon Gym)", sets: 3, reps: "12", rest: 60 },
+                    { name: "Shoulder Raises (Decathlon Gym)", sets: 3, reps: "12", rest: 60 },
+                    { name: "Lateral Raises (9kg Bags)", sets: 3, reps: "10", rest: 45 },
+                    { name: "Neutral-Grip Pushups (Save Wrists)", sets: 3, reps: "To Failure", rest: 90 }
+                ]
+            },
+            2: { 
+                title: "Pull (Back, Biceps, Rear Delts)",
+                exercises: [
+                    { name: "Chest Pull-downs (Decathlon Gym)", sets: 3, reps: "12", rest: 60 },
+                    { name: "Doorway/Towel Rows", sets: 3, reps: "10", rest: 60 },
+                    { name: "Heavy Supinated Curls (9kg Bags)", sets: 3, reps: "10", rest: 60 },
+                    { name: "Hammer Curls (9kg Bags for Brachialis)", sets: 3, reps: "12 (Failure)", rest: 60 },
+                    { name: "Pull-up Rings (Dead Hangs)", sets: 2, reps: "Max Time", rest: 0 }
+                ]
+            },
+            3: { 
+                title: "Legs & Core",
+                exercises: [
+                    { name: "Skipping Rope (Warmup)", sets: 1, reps: "3 mins", rest: 0 },
+                    { name: "Deadlifts (Decathlon Gym)", sets: 3, reps: "10", rest: 90 },
+                    { name: "Lunges (Quad/Hamstring focus)", sets: 3, reps: "10/leg", rest: 60 },
+                    { name: "Leg Raises (Decathlon Gym)", sets: 3, reps: "15", rest: 60 }
+                ]
+            },
+            0: { 
+                title: "Rest & System Recovery",
+                exercises: [
+                    { name: "Brisk Walk or Absolute Rest", sets: 1, reps: "20 mins", rest: 0 }
+                ]
+            }
+        };
+
+        let totalSets = 0; let completedSets = 0; let timerInterval;
+
+        window.nav = (id) => {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.target.classList.add('active');
+        };
+
+        function renderApp() {
+            if(!state.startDate) return;
+
+            const start = new Date(state.startDate).getTime();
+            const today = new Date().getTime();
+            const dayNum = Math.floor((today - start) / (1000 * 3600 * 24)) + 1;
+            const cycleDay = dayNum % 4;
+            const routine = routines[cycleDay];
+
+            document.getElementById('day-count').innerText = dayNum;
+            document.getElementById('cycle-title').innerText = `Day ${cycleDay===0 ? 4 : cycleDay}/4 - ${routine.title}`;
+            
+            // Ranks
+            let rank = "UNRANKED"; let color = "#94a3b8";
+            if(state.streak >= 15) { rank = "IRON"; color = "#a1a1aa"; }
+            if(state.streak >= 30) { rank = "BRONZE"; color = "#b45309"; }
+            if(state.streak >= 60) { rank = "SILVER"; color = "#cbd5e1"; }
+            if(state.streak >= 120) { rank = "GOLD"; color = "#fbbf24"; }
+            
+            const rankBadge = document.getElementById('rank-display');
+            rankBadge.innerText = `Rank: ${rank} (Streak: ${state.streak})`;
+            rankBadge.style.color = color;
+
+            if(state.anchorImage) {
+                const gfImg = document.getElementById('gf-display');
+                gfImg.src = state.anchorImage;
+                gfImg.style.display = 'block';
+                document.getElementById('gf-input').style.display = 'none';
+            }
+
+            // Render Vault Media
+            const gallery = document.getElementById('gallery-container');
+            if(state.vault) {
+                gallery.innerHTML = state.vault.slice().reverse().map(v => {
+                    let mediaTag = v.type && v.type.includes('video') 
+                        ? `<video src="${v.url}" controls class="vault-media"></video>`
+                        : `<img src="${v.url}" class="vault-media">`;
+                        
+                    return `
+                    <div class="card" style="padding: 10px;">
+                        <small style="color: var(--accent);"><strong>${v.date}</strong> | Wt: ${v.weight}kg | Streak: ${v.streak}</small>
+                        ${mediaTag}
+                    </div>`;
+                }).join('');
+            }
+
+            const todayDateString = new Date().toISOString().split('T')[0];
+            if(state.completedDates && state.completedDates.includes(todayDateString)) {
+                document.getElementById('workout-container').innerHTML = "<h3 style='color:var(--accent); text-align:center; padding: 20px 0;'>Workout Logged. System Rest.</h3>";
+                document.getElementById('complete-btn').style.display = 'none';
+                return;
+            }
+
+            totalSets = 0; completedSets = 0;
+            let html = "";
+            routine.exercises.forEach((ex) => {
+                html += `<div class="exercise"><strong>${ex.name}</strong><br><small style="color:var(--muted);">${ex.sets} Sets x ${ex.reps} (${ex.rest}s rest)</small>`;
+                for(let s=1; s<=ex.sets; s++) {
+                    totalSets++;
+                    html += `<div class="set-row"><span>Set ${s}</span><input type="checkbox" onchange="checkSet(${ex.rest}, this)"></div>`;
+                }
+                html += `</div>`;
+            });
+            document.getElementById('workout-container').innerHTML = html;
+        }
+
+        window.checkSet = (restTime, checkbox) => {
+            if(!checkbox.checked) { completedSets--; return; }
+            completedSets++;
+            
+            if(completedSets === totalSets) {
+                document.getElementById('complete-btn').disabled = false;
+                document.getElementById('active-timer').style.display = 'none';
+                return;
+            }
+
+            if(restTime > 0) {
+                clearInterval(timerInterval);
+                let time = restTime;
+                const tb = document.getElementById('active-timer');
+                const tl = document.getElementById('time-left');
+                tb.style.display = 'block';
+                
+                const boxes = document.querySelectorAll('input[type="checkbox"]:not(:checked)');
+                boxes.forEach(b => b.disabled = true);
+
+                timerInterval = setInterval(() => {
+                    time--; tl.innerText = time;
+                    if(time <= 0) {
+                        clearInterval(timerInterval); tb.style.display = 'none';
+                        boxes.forEach(b => b.disabled = false);
+                        try {
+                            let ctx = new (window.AudioContext || window.webkitAudioContext)();
+                            let osc = ctx.createOscillator(); osc.connect(ctx.destination);
+                            osc.frequency.value = 800; osc.start(); setTimeout(()=>osc.stop(), 300);
+                        } catch(e) {} 
+                    }
+                }, 1000);
+            }
+        };
+
+        window.completeDay = () => {
+            const todayDateString = new Date().toISOString().split('T')[0];
+            if(!state.completedDates) state.completedDates = [];
+            state.completedDates.push(todayDateString);
+            state.streak++;
+            syncState();
+            alert("Protocol Executed. See you tomorrow.");
+        };
+
+        // --- DIRECT CLOUDINARY MEDIA UPLOAD ---
+        window.uploadMedia = async () => {
+            const weight = document.getElementById('weight-input').value;
+            const fileInput = document.getElementById('media-input');
+            const file = fileInput.files[0];
+            
+            if(!file || !weight) return alert("Select a photo/video and log your weight.");
+            
+            const btn = document.getElementById('upload-btn');
+            const status = document.getElementById('upload-status');
+            btn.disabled = true;
+            status.style.display = 'block';
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', cloudinaryUploadPreset);
+
+                const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/auto/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await res.json();
+                if(!data.secure_url) throw new Error("Upload failed. Check your preset config.");
+                
+                const date = new Date().toLocaleDateString();
+                if(!state.vault) state.vault = [];
+                state.vault.push({ date, weight, streak: state.streak, url: data.secure_url, type: data.resource_type });
+                
+                syncState();
+                fileInput.value = ""; 
+                alert("Media Secured to Vault.");
+            } catch (error) {
+                console.error(error);
+                alert("Upload failed. Make sure your upload preset is set to Unsigned.");
+            }
+            
+            btn.disabled = false;
+            status.style.display = 'none';
+        };
+
+        window.setAnchor = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                state.anchorImage = ev.target.result;
+                syncState();
+            };
+            reader.readAsDataURL(file);
+        };
+    </script>
+</body>
+</html>
