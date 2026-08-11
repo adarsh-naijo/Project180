@@ -43,7 +43,6 @@
         input, textarea { width: 100%; padding: 14px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; font-size: 1rem; resize: none; }
         input:focus, textarea:focus { outline: none; border-color: var(--ai); }
         
-        /* Workout List & Anatomical Visual Guides */
         .exercise { display: flex; gap: 15px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
         .exercise:last-child { border: none; margin-bottom: 0; padding-bottom: 0; }
         .ex-visual { width: 90px; height: 90px; background: #ffffff; border: 2px solid var(--border); border-radius: 12px; flex-shrink: 0; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
@@ -61,7 +60,10 @@
         
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 10px; }
         .cal-header { text-align: center; font-size: 0.7rem; color: var(--text-muted); font-weight: 600; padding-bottom: 5px; }
+        .cal-empty { background: transparent; }
         .cal-cell { aspect-ratio: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 600; position: relative; color: var(--text-muted); }
+        
+        .cal-cell.today-highlight { border: 2px solid var(--text); color: var(--text); }
         .cal-cell.logged-full { background: var(--push); color: #fff; border-color: var(--push); }
         .cal-cell.logged-speed { background: linear-gradient(135deg, var(--push) 50%, var(--bg) 50%); border-color: var(--push); color: #fff; }
         .cal-cell.logged-rest { background: var(--rest); color: #fff; border-color: var(--rest); }
@@ -84,14 +86,12 @@
 </head>
 <body>
 
-    <!-- STANDBY SCREEN -->
     <div id="standby-screen" style="display:none;">
         <h1 style="font-size: 2.5rem; margin-bottom: 10px;">SYS<span style="color:var(--push);">180</span></h1>
         <p style="color: var(--text-muted); margin-bottom: 30px;">The system is primed. Awaiting your command to initiate Day 1.</p>
         <button class="btn-primary" style="background: var(--push); color: white;" onclick="initiateProtocol()">INITIALIZE PROTOCOL</button>
     </div>
 
-    <!-- SETTINGS MODAL (API KEY VAULT) -->
     <div id="settings-modal">
         <div class="card" style="width: 100%;">
             <h2 style="color: var(--ai); margin-bottom: 10px;">Connect Sage Engine</h2>
@@ -114,7 +114,6 @@
 
     <div class="container">
         
-        <!-- PROTOCOL VIEW -->
         <div id="protocol" class="view active">
             <div class="card">
                 <div class="card-header">
@@ -133,21 +132,21 @@
             <button id="complete-btn" class="btn-primary" disabled onclick="completeDay()">Log Execution</button>
         </div>
 
-        <!-- CALENDAR VIEW -->
         <div id="calendar" class="view">
             <div class="card">
-                <h2 style="margin-bottom: 15px;">Master Log</h2>
+                <h2 style="margin-bottom: 5px;" id="calendar-month-title">Current Month</h2>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px;">True Calendar Sync</p>
+                
                 <div class="cal-legend">
-                    <div class="legend-item"><div class="legend-box" style="background:var(--push);"></div> Full Workout</div>
-                    <div class="legend-item"><div class="legend-box" style="background:linear-gradient(135deg, var(--push) 50%, var(--bg) 50%); border: 1px solid var(--push);"></div> Speedy Run</div>
-                    <div class="legend-item"><div class="legend-box" style="background:var(--rest);"></div> Rest Logged</div>
+                    <div class="legend-item"><div class="legend-box" style="background:var(--push);"></div> Full</div>
+                    <div class="legend-item"><div class="legend-box" style="background:linear-gradient(135deg, var(--push) 50%, var(--bg) 50%); border: 1px solid var(--push);"></div> Speed</div>
+                    <div class="legend-item"><div class="legend-box" style="background:var(--rest);"></div> Rest</div>
                     <div class="legend-item"><div class="legend-box" style="background:var(--bg); border: 1px solid var(--border);"><div class="cal-dot" style="bottom: 2px; right: 2px;"></div></div> Cheat Meal</div>
                 </div>
                 <div class="cal-grid" id="cal-grid-render"></div>
             </div>
         </div>
 
-        <!-- VAULT VIEW -->
         <div id="vault" class="view">
             <div class="card">
                 <h2 style="margin-bottom: 15px;">Metrics Vault</h2>
@@ -164,7 +163,6 @@
             <div id="gallery-container"></div>
         </div>
 
-        <!-- SAGE AI VIEW -->
         <div id="sage" class="view">
             <div class="card">
                 <h2 style="color: var(--ai); margin-bottom: 15px;">Sage Engine Interface</h2>
@@ -185,7 +183,6 @@
             </div>
         </div>
 
-        <!-- ANCHOR VIEW -->
         <div id="anchor" class="view">
             <div class="card" style="border-color: var(--pull); text-align: center;">
                 <h2 style="color: var(--pull); margin-bottom: 10px;">SYSTEM OVERRIDE</h2>
@@ -202,7 +199,6 @@
 
     </div>
 
-    <!-- BOTTOM NAVIGATION -->
     <nav class="bottom-nav">
         <div class="nav-item active" onclick="nav('protocol', this)"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9h-2V7h-2v5H6v2h2v5h2v-5h2v-2z"/></svg>Protocol</div>
         <div class="nav-item" onclick="nav('calendar', this)"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>Log</div>
@@ -216,7 +212,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // YOUR CONFIGURATION KEYS
+        // CONFIGURATION
         const firebaseConfig = {
             apiKey: "AIzaSyDYFvs_Opl_32Lm5yIwek8TwDw0dbBXLJI",
             authDomain: "protocol180.firebaseapp.com",
@@ -235,7 +231,10 @@
         let state = { startDate: null, streak: 0, logs: {}, vault: [], anchorImage: "" };
         let currentActiveWorkoutType = "full";
 
-        // THE WORKOUT DATABASE (With Visual Placeholders)
+        function getLocalYYYYMMDD(d = new Date()) {
+            return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2, '0') + "-" + String(d.getDate()).padStart(2, '0');
+        }
+
         const routines = {
             1: { title: "Push Protocol", color: "var(--push)", 
                  full: [
@@ -268,7 +267,7 @@
                     { name: "Skipping Rope", media: "https://placehold.co/200x200/ffffff/10b981?text=Skip", sets: 1, reps: "3 mins", rest: 0 },
                     { name: "Deadlifts", media: "https://placehold.co/200x200/ffffff/10b981?text=Deadlift", sets: 3, reps: "10", rest: 90 },
                     { name: "Lunges", media: "https://placehold.co/200x200/ffffff/10b981?text=Lunge", sets: 3, reps: "10/leg", rest: 60 },
-                    { name: "Leg Raises", media: "https://placehold.co/200x200/ffffff/10b981?text=Core", sets: 3, reps: "15", rest: 60 }
+                    { name: "Leg Extensions", media: "https://placehold.co/200x200/ffffff/10b981?text=Ext", sets: 3, reps: "12", rest: 60 }
                  ],
                  speed: [
                     { name: "Tabata Skips & Lunges", media: "https://placehold.co/200x200/ffffff/10b981?text=Speed", sets: 8, reps: "20s on/10s off", rest: 0 }
@@ -280,7 +279,6 @@
             }
         };
 
-        // BOOT & SYNC
         onValue(ref(db, 'users/adarsh'), (snapshot) => {
             const data = snapshot.val();
             if (data) { state = data; if(!state.logs) state.logs = {}; } 
@@ -292,12 +290,11 @@
         function syncState() { set(ref(db, 'users/adarsh'), state); }
 
         window.initiateProtocol = () => {
-            state.startDate = new Date().toISOString().split('T')[0];
+            state.startDate = getLocalYYYYMMDD();
             if(!state.logs) state.logs = {};
             syncState();
         }
 
-        // NAVIGATION & DYNAMIC QUOTES
         window.nav = (id, el) => {
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(t => { t.classList.remove('active'); if(t.style.color !== 'var(--pull)') t.style.color = 'var(--text-muted)'; });
@@ -317,7 +314,6 @@
             }
         };
 
-        // RENDER ENGINE
         let totalSets = 0; let completedSets = 0; let timerInterval;
 
         window.setWorkoutType = (type) => {
@@ -335,7 +331,7 @@
             const dayNum = Math.floor((today - start) / (1000 * 3600 * 24)) + 1;
             const cycleDay = dayNum % 4;
             const routine = routines[cycleDay];
-            const todayDateString = new Date().toISOString().split('T')[0];
+            const todayDateString = getLocalYYYYMMDD();
 
             document.getElementById('day-count').innerText = dayNum;
             document.getElementById('cycle-title').innerText = routine.title;
@@ -349,7 +345,7 @@
                 document.getElementById('anchor-setup').style.display = 'none';
             }
             
-            renderVault(); renderCalendar(dayNum);
+            renderVault(); renderCalendar();
 
             if(state.logs[todayDateString] && state.logs[todayDateString].workout) {
                 document.getElementById('workout-container').innerHTML = "<h3 style='color:var(--push); text-align:center; padding: 40px 0;'>Protocol Logged for Today.</h3>";
@@ -370,13 +366,28 @@
             document.getElementById('workout-container').innerHTML = html;
         }
 
-        function renderCalendar(currentDayNum) {
+        function renderCalendar() {
             const grid = document.getElementById('cal-grid-render');
+            const title = document.getElementById('calendar-month-title');
+            
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            title.innerText = monthNames[month] + " " + year;
+
             let html = `<div class="cal-header">S</div><div class="cal-header">M</div><div class="cal-header">T</div><div class="cal-header">W</div><div class="cal-header">T</div><div class="cal-header">F</div><div class="cal-header">S</div>`;
             
-            for(let i = 0; i < 28; i++) {
-                let d = new Date(state.startDate); d.setDate(d.getDate() + i);
-                let log = state.logs[d.toISOString().split('T')[0]];
+            for(let x = 0; x < firstDayIndex; x++) { html += `<div class="cal-empty"></div>`; }
+            
+            const todayStr = getLocalYYYYMMDD(now);
+
+            for(let i = 1; i <= daysInMonth; i++) {
+                let dStr = year + "-" + String(month+1).padStart(2, '0') + "-" + String(i).padStart(2, '0');
+                let log = state.logs ? state.logs[dStr] : null;
                 let cellClass = "cal-cell"; let dotHtml = "";
                 
                 if(log) {
@@ -385,7 +396,10 @@
                     if(log.workout === 'rest') cellClass += " logged-rest";
                     if(log.cheat) dotHtml = `<div class="cal-dot"></div>`;
                 }
-                html += `<div class="${cellClass}">${i+1} ${dotHtml}</div>`;
+                
+                if(dStr === todayStr) cellClass += " today-highlight";
+                
+                html += `<div class="${cellClass}">${i} ${dotHtml}</div>`;
             }
             grid.innerHTML = html;
         }
@@ -423,7 +437,7 @@
         };
 
         window.completeDay = () => {
-            const dateStr = new Date().toISOString().split('T')[0];
+            const dateStr = getLocalYYYYMMDD();
             const cycleDay = (Math.floor((new Date().getTime() - new Date(state.startDate).getTime()) / (1000 * 3600 * 24)) + 1) % 4;
             
             if(!state.logs[dateStr]) state.logs[dateStr] = { cheat: false };
@@ -432,15 +446,14 @@
         };
 
         window.logCheatMeal = () => {
-            const dateStr = new Date().toISOString().split('T')[0];
+            const dateStr = getLocalYYYYMMDD();
             if(!state.logs[dateStr]) state.logs[dateStr] = {};
             state.logs[dateStr].cheat = true; syncState();
             alert("Cheat Meal logged to Master Calendar. Lock in.");
         };
 
-        // --- SAGE AI INTEGRATION ---
         window.saveApiKey = () => {
-            const key = document.getElementById('api-key-input').value;
+            const key = document.getElementById('api-key-input').value.trim(); 
             if(key) { localStorage.setItem('gemini_api', key); alert("Key Secured Locally."); document.getElementById('settings-modal').style.display = 'none'; }
         };
 
@@ -465,11 +478,17 @@
                 });
                 
                 const data = await response.json();
+                
+                if(!response.ok) {
+                    throw new Error(data.error?.message || "Invalid API request.");
+                }
+
                 const aiText = data.candidates[0].content.parts[0].text;
                 chatBox.innerHTML += `<div class="chat-msg chat-ai">${aiText}</div>`;
                 chatBox.scrollTop = chatBox.scrollHeight;
             } catch (error) {
-                chatBox.innerHTML += `<div class="chat-msg chat-ai" style="color:var(--pull);">Error: Check API Key or connection.</div>`;
+                chatBox.innerHTML += `<div class="chat-msg chat-ai" style="color:var(--pull);"><strong>System Error:</strong> ${error.message}<br><br><small>Double check your API key in Settings. Ensure there are no spaces at the end of the key.</small></div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
             }
         };
 
